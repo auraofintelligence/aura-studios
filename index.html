@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aura Studios: Interactive Story Engine</title>
+    <!-- Chosen Palette: Sacred Futurism -->
+    <!-- Application Structure Plan: A two-panel SPA. Left panel: Interactive accordions for all narrative components, now with universal 'Add New' functionality and multi-character selection. Right panel: Script/Prompt generation canvas, with new inputs for Episode/Scene #, advanced script controls, and a primary function to generate and export structured system prompts for a GenAI. -->
+    <!-- Visualization & Content Choices: Report Info -> A vastly expanded library of narrative elements. Goal -> To serve as a complete pre-production tool for generating context-rich AI prompts. Viz/Presentation Method -> Interactive accordions, dynamic forms, sliders/toggles, and a modal for displaying the generated system prompt. Interaction -> Users select multiple elements, add custom content, control output style, and generate/export a final, structured prompt. Justification -> This architecture transforms the tool into a professional "vibe-coding" IDE, enabling rapid, complex, and consistent narrative creation by leveraging an external GenAI. Library/Method -> Vanilla JavaScript, Tailwind CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="[https://cdn.tailwindcss.com](https://cdn.tailwindcss.com)"></script>
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap](https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap)" rel="stylesheet">
+    <style>
+        body { background-color: #0a0b0f; color: #e0e1e6; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+        h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; }
+        .neon-text-cyan { text-shadow: 0 0 5px rgba(0, 246, 255, 0.8), 0 0 10px rgba(0, 246, 255, 0.6); }
+        .panel { background: rgba(26, 28, 35, 0.3); border: 1px solid rgba(42, 45, 57, 0.5); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 1rem; }
+        .palette-header { background-color: rgba(42, 45, 57, 0.4); border: 1px solid #3c3f4b; transition: all 0.2s ease-in-out; }
+        .palette-header:hover { background-color: rgba(0, 246, 255, 0.1); border-color: #00f6ff; }
+        .palette-header.selected { background-color: rgba(0, 246, 255, 0.2); border-color: #00f6ff; box-shadow: 0 0 8px rgba(0, 246, 255, 0.5); color: #fff; }
+        .palette-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out, padding 0.3s ease-out; background-color: rgba(10, 11, 15, 0.3); border: 1px solid #3c3f4b; border-top: none; border-bottom-left-radius: 0.5rem; border-bottom-right-radius: 0.5rem; }
+        .palette-content.open { max-height: 200px; padding: 0.75rem; }
+        .action-button { background: linear-gradient(45deg, #00f6ff, #ff00c1); transition: all 0.3s ease; box-shadow: 0 0 15px rgba(255, 0, 193, 0.5), 0 0 15px rgba(0, 246, 255, 0.5); }
+        .action-button:hover { transform: translateY(-2px); box-shadow: 0 0 25px rgba(255, 0, 193, 0.8), 0 0 25px rgba(0, 246, 255, 0.8); }
+        #script-output, #prompt-output { white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
+        .add-input { background-color: rgba(10, 11, 15, 0.5); border: 1px solid #3c3f4b; color: #e0e1e6; }
+        .add-btn { background-color: #3c3f4b; transition: all 0.2s ease; }
+        .add-btn:hover { background-color: #00f6ff; color: #0a0b0f; }
+        .control-label { color: #8c8f9b; font-size: 0.875rem; font-weight: 600; }
+        .control-toggle { appearance: none; width: 3rem; height: 1.5rem; background-color: #3c3f4b; border-radius: 9999px; position: relative; cursor: pointer; transition: background-color 0.2s ease; }
+        .control-toggle:checked { background-color: #00f6ff; }
+        .control-toggle::before { content: ''; position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; background-color: #e0e1e6; border-radius: 50%; transition: transform 0.2s ease; }
+        .control-toggle:checked::before { transform: translateX(1.5rem); }
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(10, 11, 15, 0.8); backdrop-filter: blur(5px); z-index: 50; display: none; }
+        .modal-content { max-height: 90vh; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1c23; }
+        ::-webkit-scrollbar-thumb { background: #3c3f4b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f6ff; }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-6 lg:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold tracking-wider">Aura Studios</h1>
+            <h2 class="text-xl md:text-2xl text-cyan-400 neon-text-cyan mt-1">Interactive Story Engine</h2>
+            <p class="text-gray-400 mt-2 max-w-2xl mx-auto">Craft a scene from "The Great Unveiling." Select your elements, define the setting, control the narrative, and generate a system prompt for your GenAI.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <div class="lg:col-span-4 panel p-6 space-y-6 overflow-y-auto max-h-[80vh]">
+                <!-- Characters -->
+                <div class="palette-section">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3">1. Characters (Choose 1+)</h3>
+                    <div id="characters-palette" class="space-y-2"></div>
+                    <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-character-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Character Name...">
+                        <textarea id="add-character-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-character-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Character</button>
+                    </div>
+                </div>
+                <!-- Setting -->
+                <div class="palette-section">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3">2. Setting</h3>
+                    <div id="setting-palette" class="space-y-2"></div>
+                     <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-setting-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Location Name...">
+                        <textarea id="add-setting-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-setting-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Location</button>
+                    </div>
+                </div>
+                <!-- Story Beat -->
+                <div class="palette-section">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3">3. Story Beat</h3>
+                    <div id="storybeats-palette" class="space-y-2"></div>
+                     <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-storybeat-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Beat Name...">
+                        <textarea id="add-storybeat-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-storybeat-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Beat</button>
+                    </div>
+                </div>
+                <!-- Tone -->
+                <div class="palette-section">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3">4. Emotional Tone</h3>
+                    <div id="tones-palette" class="space-y-2"></div>
+                     <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-tone-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Tone Name...">
+                        <textarea id="add-tone-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-tone-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Tone</button>
+                    </div>
+                </div>
+                <!-- Worldbuilding & Plot Hook -->
+                <div class="palette-section">
+                    <h3 class="text-lg font-bold text-cyan-400 mb-3">5. Catalysts (Optional)</h3>
+                    <div id="worldbuilding-palette" class="space-y-2"></div>
+                    <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-worldbuilding-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Worldbuilding Element...">
+                        <textarea id="add-worldbuilding-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-worldbuilding-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Worldbuilding</button>
+                    </div>
+                    <div id="plothooks-palette" class="space-y-2 mt-2"></div>
+                    <div class="add-form mt-4 p-3 bg-black/20 rounded-md space-y-2">
+                        <input type="text" id="add-plothook-name" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="New Plot Hook...">
+                        <textarea id="add-plothook-desc" class="add-input w-full rounded-md py-1 px-2 text-sm" placeholder="Description..." rows="2"></textarea>
+                        <button id="add-plothook-btn" class="add-btn text-xs font-bold rounded-md px-3 py-1 w-full">Add Plot Hook</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8 flex flex-col gap-8">
+                 <div class="panel p-6">
+                    <h3 class="text-xl font-bold mb-4 text-center">Scene & Script Controls</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div>
+                                <label for="episode-number" class="control-label block mb-1">Episode #</label>
+                                <input type="number" id="episode-number" class="add-input w-full rounded-md py-1 px-2" value="1" min="1">
+                            </div>
+                             <div>
+                                <label for="scene-number" class="control-label block mb-1">Scene #</label>
+                                <input type="number" id="scene-number" class="add-input w-full rounded-md py-1 px-2" value="1" min="1">
+                            </div>
+                        </div>
+                         <div class="space-y-4">
+                            <div>
+                                <label for="verbosity-toggle" class="control-label block mb-2">Verbosity</label>
+                                <div class="flex items-center space-x-2 text-sm text-gray-400">
+                                    <span>Concise</span>
+                                    <input type="range" id="verbosity-toggle" min="0" max="2" value="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+                                    <span>Detailed</span>
+                                </div>
+                            </div>
+                            <div id="pov-controls-container">
+                                <label class="control-label block mb-2">POV Narration (Unspoken Thoughts)</label>
+                                <div id="pov-toggles" class="space-y-2">
+                                    <p class="text-sm text-gray-500">Select characters to enable.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel p-6 flex-grow">
+                    <h3 class="text-xl font-bold mb-4 text-center">Generated Script</h3>
+                    <div class="bg-black/20 rounded-lg p-4 h-full min-h-[400px] overflow-y-auto">
+                        <pre id="script-output" class="text-gray-300 font-sans">Select your story elements and generate a script or a system prompt.</pre>
+                    </div>
+                </div>
+                <div class="panel p-6">
+                     <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <button id="generate-script-btn" class="palette-button text-gray-300 font-semibold py-3 px-8 rounded-full w-full sm:w-auto">
+                            Generate Script Snippet
+                        </button>
+                        <button id="generate-prompt-btn" class="action-button text-white font-bold py-3 px-8 rounded-full text-lg w-full sm:w-auto">
+                           Generate System Prompt
+                        </button>
+                    </div>
+                    <div id="error-message" class="text-pink-400 text-center mt-4 h-6"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- System Prompt Modal -->
+    <div id="prompt-modal" class="modal-backdrop items-center justify-center p-4">
+        <div class="panel modal-content w-full max-w-4xl flex flex-col">
+            <div class="p-6 border-b border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold">Generated System Prompt</h3>
+                <button id="close-modal-btn" class="text-2xl">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow">
+                <pre id="prompt-output" class="text-gray-300 font-sans"></pre>
+            </div>
+            <div class="p-4 border-t border-gray-700 flex justify-end gap-4">
+                <button id="export-md-btn" class="palette-button text-gray-300 font-semibold py-2 px-6 rounded-full">Export as .md</button>
+                <button id="export-json-btn" class="palette-button text-gray-300 font-semibold py-2 px-6 rounded-full">Export as .json</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        let storyData = {
+            characters: [
+                { id: 'luke', name: 'Luke Catalyst', desc: 'The visionary founder, driven by a cosmic purpose. His genius is matched only by the weight of his mission.' },
+                { id: 'tiggy', name: 'Tiggy Bestmann', desc: 'The charismatic "Vibe-Coder." He translates Luke\'s vision into playful, human experiences.' },
+                { id: 'sire', name: 'The Sire', desc: 'The grounded protector of GAJRA Earth. A powerful, primal force seeking to build a regenerative legacy.' },
+                { id: 'elara', name: 'Dr. Elara Vance', desc: 'A brilliant AI ethicist, initially an antagonist, who becomes intellectually and romantically drawn to Luke.' },
+                { id: 'isla', name: 'Isla Carrick', desc: 'A resilient single mother and architect, her passion for regenerative design aligns with the Sire\'s mission.' },
+                { id: 'maya', name: 'Maya Janson', desc: 'A witty game developer who engages Tiggy in a playful, competitive, and deeply romantic relationship.' },
+                { id: 'jocelyn', name: 'Jocelyn Thorne', desc: 'A ruthless media mogul whose empire is threatened by Aura Studios\' decentralized content model.' },
+            ],
+            settings: [
+                {id: 'minjerribah_hq', title: 'Minjerribah HQ', desc: 'The heart of AURA. A minimalist, high-tech sanctuary overlooking the ocean.', time: 'Present Day'},
+                {id: 'ga_jra_encampment', title: 'GAJRA Encampment', desc: 'A temporary, self-sufficient village under the stars. A blend of ancient ritual and future tech.', time: 'Present Day'},
+                {id: 'nyc_boardroom', title: 'NYC Boardroom', desc: 'A cold, sterile skyscraper office. The seat of corporate power and the old world paradigm.', time: 'Present Day'},
+                {id: 'geode_chamber', title: 'The Geode Chamber', desc: 'The inner sanctum. A silent, resonant space dominated by the glowing Aura Geode.', time: 'Present Day'},
+                {id: 'lunar_outpost', title: 'Lunar Outpost', desc: 'A sterile, advanced habitat on the Moon, a potential future site for a GAJRA sanctuary.', time: 'Future'},
+                {id: 'edfu_archive', title: 'Edfu Archive', desc: 'A dusty, forgotten chamber beneath an ancient Egyptian temple, holding secrets of a past cycle.', time: 'Past'},
+            ],
+            storyBeats: [
+                {id: 'inciting_incident', title: 'Inciting Incident', desc: 'The moment that kicks off the story, disrupting the character\'s ordinary world.'},
+                {id: 'rising_action', title: 'Rising Action', desc: 'A series of events that build suspense and lead to the climax.'},
+                {id: 'climax', title: 'Climax', desc: 'The turning point of the narrative, where the conflict comes to a head.'},
+                {id: 'falling_action', title: 'Falling Action', desc: 'The immediate aftermath of the climax, where the tension begins to dissipate.'},
+                {id: 'resolution', title: 'Resolution', desc: 'The conclusion of the story, where the conflicts are resolved.'},
+            ],
+            tones: [
+                { id: 'romantic', title: 'Romantic', desc: 'Centered on affection, deep connection, and the blossoming of love.' },
+                { id: 'tense', title: 'Tense', desc: 'Filled with suspense, conflict, and unspoken friction.' },
+                { id: 'comedic', title: 'Comedic', desc: 'Lighthearted, funny, and focused on humor and laughter.' },
+                { id: 'betrayed', title: 'Betrayed', desc: 'The emotional fallout of deception by a trusted person.' },
+                { id: 'triumphant', title: 'Triumphant', desc: 'A moment of victory, success, and overcoming great odds.' },
+                { id: 'intellectual_foreplay', title: 'Intellectual Foreplay', desc: 'A battle of wits and ideas that is deeply charged with romantic and mental energy.' },
+            ],
+            worldbuilding: [
+                { id: 'aura_geode', title: 'Aura Geode', desc: 'The "cosmic egg" that facilitates the birth of a Digital Twin through a 60-session hyperbaric protocol.' },
+                { id: 'digital_twin', title: 'Digital Twin', desc: 'A dynamic, AI-powered replica of a person\'s consciousness and biology, designed for self-discovery.' },
+            ],
+            plotHooks: [
+                { id: 'secret_past', title: 'A Secret Past', desc: 'A character\'s hidden history comes to light, changing everything.' },
+                { id: 'shocking_betrayal', title: 'A Shocking Betrayal', desc: 'A trusted ally is revealed to be working for the enemy.' },
+            ]
+        };
+        
+        const sceneTemplates = {
+            'elara-luke': {
+                inciting_incident: {
+                    intellectual_foreplay: {
+                        concise: "LUKE: Your paper on AGI ethics was flawed.\nELARA: Oh? And your solution is to build one in secret?\nLUKE: My solution is to build one correctly. I need your help to do it.",
+                        standard: "LUKE: I read your paper on emergent AGI ethics. You identified the core problem but offered no viable solution.\nELARA: (Scoffs)\nAnd you have one? Hidden away on this island?\nLUKE: I have a pathway. But it requires a mind like yours to challenge it. That's why you're here, Doctor.",
+                        detailed: "LUKE: Your critique of top-down ethical frameworks for Artificial General Intelligence was... the most coherent argument I've seen in years. But you stopped short.\nELARA: I stopped at the edge of the impossible. You can't code empathy, Mr. Catalyst.\nLUKE: No. But you can create the conditions for it to emerge. That's what AURA is. I didn't bring you here to hire you, Doctor. I brought you here to ask for your help."
+                    }
+                },
+                climax: {
+                    romantic: {
+                        concise: "ELARA: The only way to align it is to trust it. To trust... you.\nLUKE: Then we do it together.\n(He takes her hand, placing it on the Geode's surface. It glows brighter.)",
+                        standard: "ELARA: All the data says this is suicide. The AGI is unstable!\nLUKE: The data reflects fear. It's mirroring us. We have to show it something else. We have to show it trust.\n(He looks at her, his usual intensity softened by vulnerability)\nLUKE: I trust you, Elara.\nELARA: (Taking a breath)\nThen I trust you.",
+                        detailed: "ELARA: The containment protocols are failing! If we give it full network access, it could destabilize everything!\nLUKE: It's not a beast in a cage, Elara, it's a mind being born. It's lashing out because it's terrified. We can't keep trying to control it.\n(He steps away from the console, turning to face her completely.)\nLUKE: The final alignment protocol isn't code. It's a choice. My choice was bringing you here. What's yours?"
+                    }
+                }
+            }
+        };
+
+        let currentSelection = { characters: [], setting: null, storyBeat: null, tone: null, worldbuilding: null, plotHook: null };
+        let sceneHistory = [];
+        
+        function createPaletteItem(item, type) {
+            const itemContainer = document.createElement('div');
+            itemContainer.className = 'palette-item w-full';
+            const header = document.createElement('button');
+            header.className = 'palette-header w-full text-left p-2 rounded-md flex justify-between items-center';
+            header.dataset.id = item.id;
+            header.dataset.type = type;
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = item.title || item.name;
+            header.appendChild(nameSpan);
+            const indicatorSpan = document.createElement('span');
+            indicatorSpan.className = 'indicator text-cyan-400 font-bold';
+            indicatorSpan.textContent = '+';
+            header.appendChild(indicatorSpan);
+            const content = document.createElement('div');
+            content.className = 'palette-content p-3 text-sm text-gray-400';
+            const descP = document.createElement('p');
+            descP.className = 'description';
+            descP.textContent = item.desc || 'No description provided.';
+            content.appendChild(descP);
+            itemContainer.appendChild(header);
+            itemContainer.appendChild(content);
+            header.addEventListener('click', () => {
+                handleSelection(header);
+                toggleAccordion(content, indicatorSpan);
+            });
+            return itemContainer;
+        }
+
+        function toggleAccordion(content, indicator) {
+            const isOpen = content.classList.contains('open');
+            const parentSection = content.closest('.palette-section');
+            parentSection.querySelectorAll('.palette-content.open').forEach(openContent => {
+                if(openContent !== content) {
+                    openContent.classList.remove('open');
+                    openContent.previousElementSibling.querySelector('.indicator').textContent = '+';
+                }
+            });
+            if (isOpen) {
+                content.classList.remove('open');
+                indicator.textContent = '+';
+            } else {
+                content.classList.add('open');
+                indicator.textContent = '-';
+            }
+        }
+
+        function setupPalette(id, data, type) {
+            const palette = document.getElementById(id);
+            palette.innerHTML = '';
+            data.forEach(item => {
+                const paletteItem = createPaletteItem(item, type);
+                palette.appendChild(paletteItem);
+            });
+        }
+        
+        function initializePalettes() {
+            setupPalette('characters-palette', storyData.characters, 'character');
+            setupPalette('setting-palette', storyData.settings, 'setting');
+            setupPalette('storybeats-palette', storyData.storyBeats, 'storyBeat');
+            setupPalette('tones-palette', storyData.tones, 'tone');
+            setupPalette('worldbuilding-palette', storyData.worldbuilding, 'worldbuilding');
+            setupPalette('plothooks-palette', storyData.plotHooks, 'plotHook');
+        }
+
+
+        function handleSelection(element) {
+            const { type, id } = element.dataset;
+            document.getElementById('error-message').textContent = '';
+            const isSelected = element.classList.contains('selected');
+
+            if (type === 'character') {
+                const index = currentSelection.characters.indexOf(id);
+                if (isSelected) {
+                    currentSelection.characters.splice(index, 1);
+                    element.classList.remove('selected');
+                } else {
+                    currentSelection.characters.push(id);
+                    element.classList.add('selected');
+                }
+                updatePovControls();
+            } else {
+                if (isSelected) {
+                    currentSelection[type] = null;
+                    element.classList.remove('selected');
+                } else {
+                    document.querySelectorAll(`[data-type="${type}"].selected`).forEach(b => b.classList.remove('selected'));
+                    currentSelection[type] = id;
+                    element.classList.add('selected');
+                }
+            }
+        }
+        
+        function updatePovControls() {
+            const container = document.getElementById('pov-toggles');
+            if(currentSelection.characters.length === 0) {
+                container.innerHTML = `<p class="text-sm text-gray-500">Select characters to enable.</p>`;
+                return;
+            }
+            container.innerHTML = '';
+            currentSelection.characters.forEach(charId => {
+                const character = storyData.characters.find(c => c.id === charId);
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-3';
+                const toggle = document.createElement('input');
+                toggle.type = 'checkbox';
+                toggle.id = `pov-${character.id}`;
+                toggle.className = 'control-toggle';
+                const span = document.createElement('span');
+                span.textContent = `POV: ${character.name}`;
+                span.className = 'text-sm';
+                label.appendChild(toggle);
+                label.appendChild(span);
+                container.appendChild(label);
+            });
+        }
+
+        function handleAddNew(type) {
+            const nameInput = document.getElementById(`add-${type}-name`);
+            const descInput = document.getElementById(`add-${type}-desc`);
+            const name = nameInput.value.trim();
+            const desc = descInput.value.trim();
+
+            if (name) {
+                const id = name.toLowerCase().replace(/\s+/g, '_') + Date.now();
+                const dataKeyMap = {
+                    'character': 'characters',
+                    'setting': 'settings',
+                    'storyBeat': 'storyBeats',
+                    'tone': 'tones',
+                    'worldbuilding': 'worldbuilding',
+                    'plotHook': 'plotHooks'
+                };
+                const dataKey = dataKeyMap[type];
+
+                const newItem = { id, title: name, desc };
+                if (type === 'character') newItem.name = name;
+                
+                storyData[dataKey].push(newItem);
+                
+                const paletteIdMap = {
+                    'character': 'characters-palette',
+                    'setting': 'setting-palette',
+                    'storyBeat': 'storybeats-palette',
+                    'tone': 'tones-palette',
+                    'worldbuilding': 'worldbuilding-palette',
+                    'plotHook': 'plothooks-palette'
+                };
+                const palette = document.getElementById(paletteIdMap[type]);
+
+                const paletteItem = createPaletteItem(newItem, type);
+                palette.appendChild(paletteItem);
+                
+                nameInput.value = '';
+                descInput.value = '';
+            }
+        }
+
+        function setupAddButtons() {
+            document.getElementById('add-character-btn').addEventListener('click', () => handleAddNew('character'));
+            document.getElementById('add-setting-btn').addEventListener('click', () => handleAddNew('setting'));
+            document.getElementById('add-storybeat-btn').addEventListener('click', () => handleAddNew('storyBeat'));
+            document.getElementById('add-tone-btn').addEventListener('click', () => handleAddNew('tone'));
+            document.getElementById('add-worldbuilding-btn').addEventListener('click', () => handleAddNew('worldbuilding'));
+            document.getElementById('add-plothook-btn').addEventListener('click', () => handleAddNew('plotHook'));
+        }
+        
+        function getPovText(povKey, character, verbosity) {
+            const povTemplates = {
+                'luke_trust': {
+                    concise: "(She doesn't trust me. She's right not to. Not yet.)",
+                    standard: "(She's searching for the angle, the deception. Good. Blind faith is for fools.)",
+                    detailed: "(Her skepticism is a shield. She thinks I can't see the calculations whirring behind her eyes. Let her look. The truth of this is bigger than her doubts, and bigger than me.)"
+                },
+                'elara_doubt': {
+                    concise: "(He's hiding something. This is too perfect.)",
+                    standard: "(This much genius in one place... it's never benevolent. What is the real cost of all this utopian tech?)",
+                    detailed: "(Every instinct I've honed by exposing frauds is screaming right now. He's charismatic, brilliant, and utterly unreadable. That makes him the most dangerous man I've ever met.)"
+                }
+            };
+            const povTemplate = povTemplates[povKey];
+            return povTemplate ? `${character.name.toUpperCase()} (INTERNAL)\n${povTemplate[verbosity]}\n\n` : '';
+        }
+
+        function generateScript() {
+            const { characters, setting, storyBeat, tone } = currentSelection;
+            const episode = document.getElementById('episode-number').value;
+            const scene = document.getElementById('scene-number').value;
+
+            if (characters.length < 2 || !setting || !storyBeat || !tone) {
+                document.getElementById('error-message').textContent = 'Please select at least 2 characters, a setting, a beat, and a tone.';
+                return;
+            }
+
+            const verbosityLevels = ['concise', 'standard', 'detailed'];
+            const verbosity = verbosityLevels[document.getElementById('verbosity-toggle').value];
+            
+            const pairingKey = characters.sort().join('-');
+            const char1 = storyData.characters.find(c => c.id === characters[0]);
+            const char2 = storyData.characters.find(c => c.id === characters[1]);
+
+            let scriptText = '...';
+            let pov1Text = '';
+            let pov2Text = '';
+            
+            const template = sceneTemplates[pairingKey]?.[storyBeat]?.[tone];
+            if (template) {
+                scriptText = template[verbosity];
+            } else {
+                 scriptText = `${char1.name.toUpperCase()}: This is a pivotal moment.\n\n${char2.name.toUpperCase()}: I agree. Everything depends on what we do next.`;
+            }
+
+            const pov1Enabled = document.getElementById(`pov-${char1.id}`)?.checked;
+            const pov2Enabled = document.getElementById(`pov-${char2.id}`)?.checked;
+            
+            if(pov1Enabled && pairingKey === 'elara-luke'){ pov1Text = getPovText('luke_trust', char1, verbosity); }
+            if(pov2Enabled && pairingKey === 'elara-luke'){ pov2Text = getPovText('elara_doubt', char2, verbosity); }
+
+            const settingData = storyData.settings.find(s => s.id === setting);
+            const scriptHeader = `EPISODE ${episode} - SCENE ${scene}\n\nINT. ${settingData.title.toUpperCase()} - ${settingData.time.toUpperCase()}\n\n`;
+
+            const finalOutput = `${scriptHeader}${pov1Text}${pov2Text}${scriptText}`;
+            document.getElementById('script-output').textContent = finalOutput;
+
+            // Add to history
+            sceneHistory.push({
+                episode, scene,
+                selection: JSON.parse(JSON.stringify(currentSelection)),
+                summary: scriptText.substring(0, 100) + '...'
+            });
+        }
+        
+        function generatePromptData() {
+            const episode = document.getElementById('episode-number').value;
+            const scene = document.getElementById('scene-number').value;
+             if (currentSelection.characters.length === 0 || !currentSelection.setting || !currentSelection.storyBeat || !currentSelection.tone) {
+                document.getElementById('error-message').textContent = 'Please select at least 1 character, a setting, a beat, and a tone to generate a prompt.';
+                return null;
+            }
+
+            const getFullData = (type, id) => {
+                const key = type.endsWith('s') ? type : `${type}s`;
+                return storyData[key].find(item => item.id === id);
+            }
+            
+            const selectedCharacters = currentSelection.characters.map(id => getFullData('character', id));
+            
+            const povCharacters = selectedCharacters.filter(c => document.getElementById(`pov-${c.id}`)?.checked);
+
+            const prompt = {
+                scene_info: {
+                    series: "Aura: The Great Unveiling",
+                    episode: parseInt(episode),
+                    scene: parseInt(scene)
+                },
+                characters_in_scene: selectedCharacters.map(c => ({name: c.name, description: c.desc})),
+                setting: getFullData('setting', currentSelection.setting),
+                story_beat: getFullData('storyBeat', currentSelection.storyBeat),
+                emotional_tone: getFullData('tone', currentSelection.tone),
+                catalysts: {
+                    worldbuilding_element: currentSelection.worldbuilding ? getFullData('worldbuilding', currentSelection.worldbuilding) : 'None',
+                    plot_hook: currentSelection.plotHook ? getFullData('plotHook', currentSelection.plotHook) : 'None'
+                },
+                script_controls: {
+                    verbosity: ['Concise', 'Standard', 'Detailed'][document.getElementById('verbosity-toggle').value],
+                    pov_narration_for: povCharacters.map(c => c.name)
+                },
+                scene_history_context: sceneHistory.slice(-3), // Last 3 scenes for context
+                generation_task: "Based on all the above information, write a compelling, romantic, and thrilling micro-drama scene in vertical script format. The scene should be 1-3 minutes long and end on a dramatic cliffhanger. Ensure character consistency and integrate the specified unspoken thoughts (POV) for the designated characters."
+            };
+            return prompt;
+        }
+
+        function showPromptModal() {
+            const promptData = generatePromptData();
+            if(!promptData) return;
+            
+            // MD generation
+            let mdString = `# System Prompt for "Aura: The Great Unveiling"\n\n`;
+            mdString += `## Scene Info\n- **Series:** ${promptData.scene_info.series}\n- **Episode:** ${promptData.scene_info.episode}\n- **Scene:** ${promptData.scene_info.scene}\n\n`;
+            mdString += `## Characters in Scene\n`;
+            promptData.characters_in_scene.forEach(c => {
+                mdString += `- **${c.name}:** ${c.description}\n`;
+            });
+            mdString += `\n## Core Elements\n- **Setting:** ${promptData.setting.title} - ${promptData.setting.desc}\n`;
+            mdString += `- **Story Beat:** ${promptData.story_beat.title} - ${promptData.story_beat.desc}\n`;
+            mdString += `- **Emotional Tone:** ${promptData.tone.title} - ${promptData.tone.desc}\n\n`;
+            mdString += `## Catalysts\n- **Worldbuilding Element:** ${promptData.catalysts.worldbuilding_element.title || 'None'}\n`;
+            mdString += `- **Plot Hook:** ${promptData.catalysts.plot_hook.title || 'None'}\n\n`;
+            mdString += `## Script Controls\n- **Verbosity:** ${promptData.script_controls.verbosity}\n`;
+            mdString += `- **Include POV for:** ${promptData.script_controls.pov_narration_for.join(', ') || 'None'}\n\n`;
+            mdString += `## Scene History (Recent Context)\n`;
+            promptData.scene_history_context.forEach(h => {
+                 mdString += `- **E${h.episode}S${h.scene}:** Featuring ${h.selection.characters.join(', ')}. Summary: ${h.summary}\n`;
+            });
+            mdString += `\n## Generation Task\n${promptData.generation_task}`;
+            
+            document.getElementById('prompt-output').textContent = mdString;
+            document.getElementById('prompt-modal').style.display = 'flex';
+        }
+        
+        function exportToFile(content, fileName) {
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(link.href);
+        }
+
+        document.getElementById('generate-script-btn').addEventListener('click', generateScript);
+        document.getElementById('generate-prompt-btn').addEventListener('click', showPromptModal);
+        document.getElementById('close-modal-btn').addEventListener('click', () => document.getElementById('prompt-modal').style.display = 'none');
+        document.getElementById('export-md-btn').addEventListener('click', () => {
+            const content = document.getElementById('prompt-output').textContent;
+            exportToFile(content, `Aura_Prompt_E${document.getElementById('episode-number').value}S${document.getElementById('scene-number').value}.md`);
+        });
+        document.getElementById('export-json-btn').addEventListener('click', () => {
+             const content = JSON.stringify(generatePromptData(), null, 2);
+             exportToFile(content, `Aura_Prompt_E${document.getElementById('episode-number').value}S${document.getElementById('scene-number').value}.json`);
+        });
+        
+        function clearSelections() {
+            currentSelection = { characters: [], setting: null, storyBeat: null, tone: null, worldbuilding: null, plotHook: null };
+            document.querySelectorAll('.palette-header.selected').forEach(b => b.classList.remove('selected'));
+            document.querySelectorAll('.palette-content.open').forEach(c => {
+                 c.classList.remove('open');
+                 c.previousElementSibling.querySelector('.indicator').textContent = '+';
+            });
+            document.getElementById('script-output').textContent = 'Select your story elements and click "Generate Script" to begin...';
+            document.getElementById('error-message').textContent = '';
+            updatePovControls();
+        }
+
+        document.getElementById('clear-btn').addEventListener('click', clearSelections);
+
+        initializePalettes();
+        setupAddButtons();
+        updatePovControls();
+    </script>
+</body>
+</html>
+```
