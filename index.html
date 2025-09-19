@@ -157,8 +157,12 @@
                         <button id="generate-prompt-btn" class="action-button text-white font-bold py-3 px-8 rounded-full text-lg w-full sm:w-auto">
                            Generate System Prompt
                         </button>
+                        <button id="voice-command-btn" class="p-3 rounded-full bg-gray-700 hover:bg-cyan-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                        </button>
                     </div>
                     <div class="text-center mt-4">
+                        <p id="voice-status" class="text-sm text-gray-400 h-6">Click the mic to issue a voice command.</p>
                         <button id="clear-btn" class="text-gray-500 hover:text-white transition-colors text-xs font-semibold underline">Clear Selections</button>
                     </div>
                     <div id="error-message" class="text-pink-400 text-center mt-4 h-6"></div>
@@ -185,7 +189,11 @@
     </div>
 
 
+    <script src="config.js"></script>
+    <script type="module" src="voice-commands.js"></script>
     <script type="module">
+        window.Aura = {};
+
         let storyData = {
             characters: [
                 { id: 'luke', name: 'Luke Catalyst', desc: 'The visionary founder, driven by a cosmic purpose. His genius is matched only by the weight of his mission.' },
@@ -586,6 +594,12 @@
         }
 
         document.getElementById('clear-btn').addEventListener('click', clearSelections);
+
+        Aura.storyData = storyData;
+        Aura.handleSelection = handleSelection;
+        Aura.generateScript = generateScript;
+        Aura.showPromptModal = showPromptModal;
+        Aura.clearSelections = clearSelections;
 
         initializePalettes();
         setupAddButtons();
